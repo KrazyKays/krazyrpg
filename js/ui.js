@@ -18,7 +18,23 @@
   const load = () => { try { const s = JSON.parse(localStorage.getItem(KEY)); return s && s.cls && CLASSES[s.cls] ? s : null; } catch (e) { return null; } };
 
   /* ---------- Petits utilitaires d'affichage ---------- */
-  const bar = (v, max, cls) => `<div class="bar ${cls}"><i style="width:${Math.max(0, Math.min(100, v / max * 100))}%"></i><span>${Math.round(v)} / ${Math.round(max)}</span></div>`;
+  /* Les barres repartent de leur ancienne valeur puis glissent vers la nouvelle (voir settle). */
+  const prevW = {};
+  const bar = (v, max, cls, key) => {
+    const w = Math.max(0, Math.min(100, v / max * 100)), p = key in prevW ? prevW[key] : w;
+    prevW[key] = w;
+    return `<div class="bar ${cls}"><u style="width:${p}%" data-w="${w}"></u><i style="width:${p}%" data-w="${w}"></i><span>${Math.round(v)} / ${Math.round(max)}</span></div>`;
+  };
+  function settle() {
+    void app.offsetWidth; // fige l'état de départ avant de lancer les transitions
+    app.querySelectorAll('[data-w]').forEach(el => { el.style.width = el.dataset.w + '%'; });
+    app.querySelectorAll('[data-l]').forEach(el => { el.style.left = el.dataset.l + '%'; });
+  }
+  /* L'animation d'entrée ne joue que lorsqu'on change réellement d'écran. */
+  let view = null;
+  const setView = k => { app.classList.toggle('enter', k !== view); view = k; };
+  const calm = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const anim = (el, kf, o) => { if (el && el.animate && !calm) el.animate(kf, o); };
   const modLines = mods => Object.keys(mods).map(k => `<li>${KR.modLabel(k, mods[k])}</li>`).join('');
   const STN = { saignement: '🩸', cauchemar: '🕸️', poison: '☠️', etourdi: '💫', fragile: '💔', affaibli: '📉', rage: '🔥', esquive: '💨', garde: '🛡️' };
   const STT = { saignement: 'Saignement', cauchemar: 'Cauchemar', poison: 'Poison', etourdi: 'Étourdi', fragile: 'Fragile', affaibli: 'Affaibli', rage: 'Rage', esquive: 'Feinte', garde: 'Garde' };
@@ -34,14 +50,15 @@
     <span class="iic">${SLOTS[it.slot].ic}</span><b>${it.name}${it.up ? ' +' + it.up : ''}</b>
     <small>${RAR[it.rar].n} · niv. ${it.ilvl}</small></button>`;
 
-  function modal(html) { modalEl.innerHTML = `<div class="mbox">${html}</div>`; modalEl.hidden = false; }
+  function modal(html) { modalEl.innerHTML = `<div class="mbox ${modalEl.hidden ? 'pop' : ''}">${html}</div>`; modalEl.hidden = false; }
   function closeModal() { modalEl.hidden = true; modalEl.innerHTML = ''; }
 
   /* ================= Écran titre ================= */
   function renderTitle() {
     document.body.className = '';
+    setView('title');
     app.innerHTML = `<div class="title">
-      <h1 class="logo">KRAZY<span>RPG</span></h1>
+      <h1 class="logo" aria-label="KRAZY RPG">${'KRAZY'.split('').map(l => `<span>${l}</span>`).join('')}<em>RPG</em></h1>
       <p class="sub">Le Miroir Brisé</p>
       <p class="lore">Le Grand Miroir qui reflétait la raison du monde s'est brisé. Depuis, la réalité se fissure et le
         <b>Délire</b> gagne tout… y compris toi. Apprends à danser avec ta propre folie pour recoller les morceaux.</p>
@@ -60,6 +77,7 @@
     if (!S) return renderTitle();
     if (C) return renderCombat();
     document.body.className = '';
+    setView('camp:' + tab);
     const H = KR.computeHero(S), c = CLASSES[S.cls], pts = KR.talentPoints(S);
     const fu = KR.failleUnlocked(S);
     const tabs = [['aventure', '🗺️ Aventure'], ['heros', '🎒 Héros'], ['talents', `🌳 Talents${pts > 0 ? ` <i class="pip">${pts}</i>` : ''}`], ['atelier', '⚒️ Atelier']];
@@ -68,11 +86,12 @@
     const xpMax = KR.xpNeed(S.lvl);
     app.innerHTML = `<header class="top">
         <div class="who"><span class="cic">${c.ic}</span><div><b>${c.name}</b><small>Niveau ${S.lvl}${S.lvl >= KR.MAX_LVL ? ' (max)' : ''}</small></div></div>
-        <div class="xp">${bar(S.xp, xpMax, 'xpb')}</div>
+        <div class="xp">${bar(S.xp, xpMax, 'xpb', 'xp')}</div>
         <div class="cur"><span title="Boutons (monnaie)">🔘 ${S.gold}</span>${fu ? `<span title="Fragments de miroir">💠 ${S.frag}</span>` : ''}</div>
       </header>
       <nav class="tabs">${tabs.map(([k, n]) => `<button class="${tab === k ? 'on' : ''}" data-act="tab" data-tab="${k}">${n}</button>`).join('')}</nav>
       <main>${({ aventure: vAventure, heros: vHeros, talents: vTalents, atelier: vAtelier, faille: vFaille, options: vOptions })[tab](H)}</main>`;
+    settle();
   }
 
   function vAventure() {
@@ -173,13 +192,28 @@
 
   function renderCombat() {
     const h = C.hero, H = C.H, state = KR.dState(C), K = H.krazyAt;
+    setView('combat:' + fightId);
     document.body.className = 'in-combat s-' + state;
     if (!C.foes[target] || C.foes[target].hp <= 0) target = C.foes.findIndex(f => f.hp > 0);
-    const foes = C.foes.map((f, i) => f.hp <= 0 ? `<div class="foe dead" data-u="${i}"><span class="fic">💨</span><b>${f.n}</b></div>` :
-      `<button class="foe ${i === target ? 'sel' : ''} ${f.boss ? 'boss' : ''}" data-act="target" data-i="${i}" data-u="${i}">
+    // Le balancement des ennemis reprend là où il en était malgré le réaffichage complet.
+    const bobDur = state === 'krazy' ? 0.9 : 2.4, now = performance.now() / 1000;
+    const bob = i => `style="animation-delay:-${((now + i * 0.8) % bobDur).toFixed(2)}s"`;
+    const foes = C.foes.map((f, i) => {
+      if (f.hp <= 0) {
+        const dying = !seenDead.has(i); seenDead.add(i);
+        return `<div class="foe dead ${dying ? 'dying' : ''} ${f.boss ? 'boss' : ''}" data-u="${i}">${dying ? `<span class="fic was">${f.ic}</span>` : ''}<span class="fic puff">💨</span><b>${f.n}</b></div>`;
+      }
+      return `<button class="foe ${i === target ? 'sel' : ''} ${f.boss ? 'boss' : ''}" data-act="target" data-i="${i}" data-u="${i}">
         <span class="intent" title="Prochaine action">${f.st.some(x => x.k === 'etourdi') ? '💫 Étourdi' : MOVES[f.intent].ic + ' ' + MOVES[f.intent].n}</span>
-        <span class="fic">${f.ic}</span><b>${f.n}</b><small>niv. ${f.lvl}${f.shield > 0 ? ` · 🛡️ ${f.shield}` : ''}</small>
-        ${bar(f.hp, f.maxHp, 'hp')}<div class="sts">${stIcons(f)}</div></button>`).join('');
+        <span class="fic" ${bob(i)}>${f.ic}</span><b>${f.n}</b><small>niv. ${f.lvl}${f.shield > 0 ? ` · 🛡️ ${f.shield}` : ''}</small>
+        ${bar(f.hp, f.maxHp, 'hp', 'f' + i)}<div class="sts">${stIcons(f)}</div></button>`;
+    }).join('');
+    const lines = C.log.slice(-5), first = C.log.length - lines.length;
+    const log = lines.map((l, i) => `<div class="${first + i >= logSeen ? 'new' : ''}">${l}</div>`).join('');
+    logSeen = C.log.length;
+    const logHtml = log || '<div class="new"><i>Le combat commence… à toi de jouer.</i></div>';
+    const pd = prevDel == null ? h.delire : prevDel; prevDel = h.delire;
+    const zl = (s, n, w) => `<span data-s="${s}" class="${state === s ? 'on' : ''}" style="width:${w}%">${n}</span>`;
     const btn = id => {
       const v = KR.skillView(C, id), cd = h.cds[id] || 0;
       return `<button class="act ${v.krazy ? 'kz' : ''}" ${cd > 0 || busy ? 'disabled' : ''} data-act="skill" data-id="${id}">
@@ -194,27 +228,116 @@
       <div class="chead"><b>${title}</b><span>Tour ${C.round}</span><button class="lnk" data-act="flee">Fuir</button></div>
       ${S.wins < 3 ? '<p class="hint tip">💡 Clique un ennemi pour le cibler. L\'étiquette au-dessus de lui annonce sa prochaine action : face à un 💥 Coup lourd, pense à <b>Se recentrer</b>.</p>' : ''}
       <div class="foes">${foes}</div>
-      <div class="log">${C.log.slice(-5).map(l => `<div>${l}</div>`).join('')}</div>
+      <div class="log">${logHtml}</div>
       <div class="hero" data-u="h">
-        <div class="hrow"><span class="cic">${CLASSES[S.cls].ic}</span><div class="hbars">${bar(h.hp, h.maxHp, 'hp')}
+        <div class="hrow"><span class="cic">${CLASSES[S.cls].ic}</span><div class="hbars">${bar(h.hp, h.maxHp, 'hp' + (h.hp < h.maxHp * 0.3 ? ' low' : ''), 'h')}
           <div class="sts">${h.shield > 0 ? `<span class="st">🛡️${h.shield}</span>` : ''}${stIcons(h)}</div></div></div>
-        <div class="delire" title="Jauge de Délire"><div class="dz l" style="width:34%"></div><div class="dz f" style="width:${K - 34}%"></div><div class="dz k" style="width:${100 - K}%"></div>
-          <div class="dmark" style="left:${h.delire}%"></div><span>Délire ${h.delire} / 100</span></div>
+        <div class="dhead"><b>Délire</b><span class="dnum">${h.delire} / 100</span><span class="pv"></span></div>
+        <div class="delire${h.delire >= 85 ? ' hot' : ''}" title="Jauge de Délire">
+          <div class="dz l" style="width:34%"></div><div class="dz f" style="width:${K - 34}%"></div><div class="dz k" style="width:${100 - K}%"></div>
+          <div class="dveil" style="left:${pd}%" data-l="${h.delire}"></div><div class="dprev"></div><div class="dghost"></div>
+          <div class="dmark" style="left:${pd}%" data-l="${h.delire}"></div></div>
+        <div class="dlab">${zl('lucide', 'Lucide', 34)}${zl('fele', 'Fêlé', K - 34)}${zl('krazy', 'Krazy', 100 - K)}</div>
         <p class="state">${STATE_TXT[state]}${h.delire >= 85 ? ' — <b class="warn">⚠️ Rupture à 100 !</b>' : ''}</p>
       </div>
       <div class="acts">${acts}</div></div>`;
+    settle();
     const evs = C.ev; C.ev = [];
-    evs.forEach((e, i) => {
-      const el = document.querySelector(`[data-u="${e.tgt}"]`); if (!el) return;
-      const s = document.createElement('span'); s.className = 'floater ' + e.cls; s.textContent = e.txt;
-      s.style.animationDelay = i * 90 + 'ms'; s.style.left = 30 + (i * 37) % 45 + '%';
-      el.appendChild(s);
+    const rupt = evs.some(e => e.txt === 'RUPTURE');
+    if (rupt) { stamp('RUPTURE', 'rupt'); anim(app, SHAKE, { duration: 420 }); }
+    else if (state !== lastState) stamp(STAMP[state], state);
+    lastState = state;
+    playEvents(evs);
+    const hb = app.querySelector('.act:hover');
+    hoverId = hb && !hb.disabled ? hb.dataset.id : null;
+    preview(hoverId);
+  }
+
+  /* ---------- Animations de combat ---------- */
+  const fxEl = document.querySelector('#fx');
+  const STAMP = { lucide: 'Lucide', fele: 'Fêlé', krazy: 'Krazy !' };
+  const STATE_N = { lucide: '🧊 Lucide', fele: '⚡ Fêlé', krazy: '🌀 Krazy' };
+  const SHAKE = [{ translate: '0 0' }, { translate: '-7px 3px' }, { translate: '6px -3px' }, { translate: '-4px 2px' }, { translate: '0 0' }];
+  const HIT = [{ translate: '0 0', filter: 'none' }, { translate: '-7px 0', filter: 'brightness(1.5) saturate(1.6)' }, { translate: '6px 0' }, { translate: '-3px 0' }, { translate: '0 0', filter: 'none' }];
+  const HEAL = [{ scale: '1' }, { scale: '1.04', filter: 'brightness(1.25)' }, { scale: '1' }];
+  const LUNGE = [{ translate: '0 0' }, { translate: '0 -8px', offset: 0.25 }, { translate: '0 24px', scale: '1.06', offset: 0.5 }, { translate: '0 0' }];
+  const CAST = [{ translate: '0 0', scale: '1' }, { translate: '0 -18px', scale: '1.3', rotate: '-8deg' }, { translate: '0 0', scale: '1' }];
+  let fightId = 0, lastState = 'lucide', prevDel = null, logSeen = 0, hoverId = null;
+  const seenDead = new Set();
+
+  function stamp(txt, cls) {
+    const s = document.createElement('div');
+    s.className = 'stamp ' + cls; s.textContent = txt;
+    fxEl.appendChild(s); setTimeout(() => s.remove(), 1400);
+  }
+
+  /* Les chiffres flottants vivent hors de #app : ils survivent au réaffichage suivant. */
+  function floater(el, e, delay, n) {
+    const r = el.getBoundingClientRect(), s = document.createElement('span');
+    s.className = 'floater ' + e.cls; s.textContent = e.txt;
+    s.style.left = r.left + r.width * (0.3 + (n * 37 % 45) / 100) + 'px';
+    s.style.top = r.top + r.height * 0.2 + 'px';
+    s.style.animationDelay = delay + 'ms';
+    fxEl.appendChild(s); setTimeout(() => s.remove(), delay + 1200);
+  }
+
+  /* Rejoue les événements du moteur : chaque ennemi qui agit ouvre un « temps » décalé. */
+  function playEvents(evs) {
+    let t = 0, k = 0, n = 0, started = false;
+    evs.forEach(e => {
+      const el = e.tgt == null ? null : app.querySelector(`[data-u="${e.tgt}"]`);
+      if (e.cls === 'act' || e.cls === 'beat') {
+        if (started) t += 340;
+        started = true; k = 0;
+        if (e.cls === 'act') anim(el, LUNGE, { duration: 340, delay: t, easing: 'ease-in-out' });
+        return;
+      }
+      if (!el) return;
+      const at = t + 120 + k++ * 90;
+      floater(el, e, at, n++);
+      if (e.cls === 'dmg' || e.cls === 'crit') {
+        anim(el, HIT, { duration: 300, delay: at });
+        if (e.cls === 'crit' || (e.tgt === 'h' && started)) anim(app, SHAKE, { duration: e.cls === 'crit' ? 320 : 180, delay: at });
+      } else if (e.cls === 'heal') anim(el, HEAL, { duration: 400, delay: at });
     });
   }
+
+  /* Survol d'une technique : montre où arrivera le Délire sur la jauge. */
+  function preview(id) {
+    const g = app.querySelector('.delire');
+    if (!g || !C) return;
+    const num = app.querySelector('.dnum'), pv = app.querySelector('.pv'), cur = C.hero.delire;
+    app.querySelectorAll('.dlab .will').forEach(x => x.classList.remove('will'));
+    g.classList.remove('pre', 'up', 'down');
+    num.textContent = `${cur} / 100`; pv.innerHTML = '';
+    if (id == null || !SKILLS[id] || busy || C.hero.stun) return;
+    const to = KR.previewDelire(C, id), d = to - cur;
+    if (!d) { pv.innerHTML = 'inchangé'; return; }
+    const st = to >= C.H.krazyAt ? 'krazy' : to >= 34 ? 'fele' : 'lucide';
+    const dp = g.querySelector('.dprev'), dg = g.querySelector('.dghost');
+    dp.style.left = Math.min(cur, to) + '%'; dp.style.width = Math.abs(d) + '%';
+    dg.style.left = to + '%';
+    g.classList.add('pre', d > 0 ? 'up' : 'down');
+    num.innerHTML = `${cur} <span class="arr ${d > 0 ? 'up' : 'down'}">→ ${to}</span> <small>(${d > 0 ? '+' : '−'}${Math.abs(d)})</small>`;
+    if (to >= 100) pv.innerHTML = '<b class="warn">⚠️ Rupture !</b>';
+    else if (st !== KR.dState(C)) {
+      pv.innerHTML = `tu passes ${STATE_N[st]}`;
+      const lab = app.querySelector(`.dlab [data-s="${st}"]`); if (lab) lab.classList.add('will');
+    }
+  }
+  const hover = e => {
+    const b = e.type === 'focusout' || e.type === 'mouseleave' ? null : e.target.closest('.act[data-id]');
+    const id = b && !b.disabled ? b.dataset.id : null;
+    if (id !== hoverId) { hoverId = id; preview(id); }
+  };
+  ['mouseover', 'mouseleave', 'focusin', 'focusout'].forEach(t => app.addEventListener(t, hover));
 
   function startFight(c, e) {
     ctx = c; enc = e; target = 0; busy = false;
     C = KR.startCombat(KR.computeHero(S), enc);
+    fightId++; seenDead.clear(); logSeen = 0; prevDel = null; hoverId = null;
+    Object.keys(prevW).forEach(k => { if (k !== 'xp') delete prevW[k]; });
+    lastState = KR.dState(C);
     render();
   }
 
@@ -222,6 +345,7 @@
     if (!C || busy || C.over) return;
     KR.heroAct(C, id, target);
     busy = true; render();
+    if (id !== 'skip') anim(app.querySelector('.hero .cic'), CAST, { duration: 320, easing: 'ease-out' });
     KR.delay(() => {
       if (!C) return;
       if (!C.over) KR.enemiesAct(C);

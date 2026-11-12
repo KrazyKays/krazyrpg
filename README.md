@@ -44,6 +44,6 @@ Ouvrir `index.html` dans un navigateur. C'est tout.
 | `js/data.js` | Tout le contenu : classes, techniques, talents, ennemis, zones, objets |
 | `js/engine.js` | Règles : calcul du héros, génération d'objets, combat (sans DOM, testable sous Node) |
 | `js/ui.js` | Écrans, actions du joueur, sauvegarde (`localStorage`) |
-| `css/style.css` | Thème visuel |
+| `css/style.css` | Thème « estampe » (affiche imprimée) qui se dérègle avec le Délire : net en Lucide, jauni et décalé en Fêlé, tirage en négatif en Krazy |
 
 Ajouter une technique, un ennemi ou une zone se fait dans `js/data.js`, sans toucher au moteur.

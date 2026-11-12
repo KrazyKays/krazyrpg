@@ -340,6 +340,19 @@
       del: kz && sk.krazy.del !== undefined ? sk.krazy.del : sk.del, krazy: !!kz, ic: sk.ic, cd: sk.cd };
   };
 
+  /* Délire qu'aurait le héros juste après avoir utilisé la technique (sert à la prévisualisation). */
+  KR.previewDelire = (c, id) => {
+    const v = KR.skillView(c, id);
+    let d = c.hero.delire;
+    for (const fx of v.fx) {
+      if (fx.t === 'delSet') d = fx.v;
+      else if (fx.t === 'delToward') d += clamp(fx.v - d, -fx.by, fx.by);
+    }
+    let g = v.del || 0;
+    if (g > 0 && c.opts.silence) g /= 2;
+    return clamp(Math.round(d + g), 0, 100);
+  };
+
   /* Tour du héros. id = technique, ou 'skip' si étourdi. */
   KR.heroAct = (c, id, tgtIdx) => {
     if (c.over) return;
@@ -384,6 +397,7 @@
       if (stun) { f.st = f.st.filter(x => x !== stun); say(c, `💫 ${f.n} est étourdi et perd son tour.`); continue; }
       const mv = f.intent;
       say(c, `${KR.MOVES[mv].ic} ${f.n} : ${KR.MOVES[mv].n}.`);
+      ev(c, idx(c, f), '', 'act'); // marqueur : l'interface anime l'ennemi qui agit
       switch (mv) {
         case 'atk': foeHit(c, f, 1); break;
         case 'lourd': foeHit(c, f, 1.9); break;
@@ -404,6 +418,7 @@
     if (check(c)) return;
 
     // Fin de manche : maux, régénération, durées, recharges
+    ev(c, null, '', 'beat');
     for (const f of alive(c)) {
       f.st.filter(x => DOTS.includes(x.k)).forEach(x => { if (f.hp > 0) dealFoe(c, f, x.val, false, x.k === 'saignement' ? '🩸' : '🕸️'); });
       f.st.forEach(x => { if (x.k !== 'etourdi') x.turns--; });
