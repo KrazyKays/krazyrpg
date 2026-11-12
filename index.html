@@ -3,32 +3,30 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>KRAZY RPG — Le Miroir Brisé</title>
-  <meta name="description" content="RPG solo au tour par tour : domptez votre Délire pour recoller le Grand Miroir.">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪞</text></svg>">
+  <title>KRAZY RPG</title>
+  <meta name="description" content="RPG tactique au tour par tour : montez vos builds avec des panoplies et des synergies, puis mettez-les à l'épreuve sur la grille.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧩</text></svg>">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <!-- Fissures du Miroir : elles se dessinent quand le Délire monte -->
-  <svg id="cracks" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-    <path class="cf" pathLength="1" d="M-10,120 L140,180 L210,150 L330,260 L420,250 L520,340"/>
-    <path class="cf" pathLength="1" d="M210,150 L260,60 L330,30"/>
-    <path class="cf" pathLength="1" d="M1610,820 L1450,760 L1390,800 L1270,700 L1180,720 L1090,640"/>
-    <path class="cf" pathLength="1" d="M1390,800 L1350,900 L1280,960"/>
-    <path class="ck" pathLength="1" d="M1610,90 L1480,170 L1420,140 L1300,250 L1230,240 L1150,330 L1165,430"/>
-    <path class="ck" pathLength="1" d="M1300,250 L1330,340 L1290,400"/>
-    <path class="ck" pathLength="1" d="M-10,900 L130,820 L200,850 L320,740 L400,760 L480,670"/>
-    <path class="ck" pathLength="1" d="M320,740 L300,650 L350,590"/>
-    <path class="ck" pathLength="1" d="M760,-10 L790,90 L740,150 L800,240"/>
-    <path class="ck" pathLength="1" d="M880,1010 L850,920 L900,860 L860,780"/>
-    <path class="ck" pathLength="1" d="M520,340 L600,360 L640,440"/>
-    <path class="ck" pathLength="1" d="M1090,640 L1010,630 L960,560"/>
-  </svg>
   <div id="app"></div>
-  <div id="fx" aria-hidden="true"></div>
   <div id="modal" hidden></div>
-  <script src="js/data.js"></script>
-  <script src="js/engine.js"></script>
-  <script src="js/ui.js"></script>
+  <div id="tip" hidden></div>
+  <div id="toasts" aria-live="polite"></div>
+
+  <script src="js/core/util.js"></script>
+  <script src="js/data/stats.js"></script>
+  <script src="js/data/classes.js"></script>
+  <script src="js/data/items.js"></script>
+  <script src="js/data/monsters.js"></script>
+  <script src="js/core/character.js"></script>
+  <script src="js/core/state.js"></script>
+  <script src="js/combat/grid.js"></script>
+  <script src="js/combat/engine.js"></script>
+  <script src="js/combat/ai.js"></script>
+  <script src="js/ui/common.js"></script>
+  <script src="js/ui/screens.js"></script>
+  <script src="js/ui/combat-view.js"></script>
+  <script src="js/main.js"></script>
 </body>
 </html>

@@ -1,35 +1,35 @@
-# KRAZY RPG — Le Miroir Brisé
+# KRAZY RPG
 
-RPG solo au tour par tour, jouable dans le navigateur et hébergé sur GitHub Pages.
+RPG tactique au tour par tour, jouable dans le navigateur et hébergé sur GitHub Pages.
 Aucune dépendance, aucune étape de build : du HTML, du CSS et du JavaScript.
 
 ## Le principe
 
-Le Grand Miroir qui reflétait la raison du monde s'est brisé. Le **Délire** gagne tout, y compris le héros.
+Le plaisir de **monter un build**, puis de le **mettre à l'épreuve** sur une grille de combat.
 
-La jauge de Délire est la mécanique centrale :
+1. **Recrute** jusqu'à 6 personnages parmi 5 classes, et compose une équipe de 3.
+2. **Monte leur build** :
+   - 5 points de caractéristiques par niveau (Vitalité, Sagesse, Force, Intelligence, Chance, Agilité) ;
+   - 10 emplacements d'équipement, dont 2 reliques ;
+   - 12 **panoplies** dont les bonus grandissent avec le nombre de pièces portées, certaines modifiant les sorts de classe (−1 PA, +1 PO, relance réduite…) ;
+   - 6 sorts équipés parmi les 8 de la classe, plus l'attaque de l'arme.
+3. **Combine les synergies d'équipe** : l'élément dominant de chaque personnage (Terre, Feu, Eau, Air) débloque des résonances ; les compositions variées ou identiques ont aussi leurs bonus.
+4. **Combats** sur une grille 12 × 9 : placement, PA/PM, portée, ligne de vue, zones, poussées, poisons, boucliers. Les monstres ont des résistances différentes : adapte tes éléments.
+5. **Farme** : chaque donjon lâche ses propres panoplies, avec des jets aléatoires. Les boss lâchent leur relique. La prospection augmente le butin.
+6. **Forge** : recycle tes objets en éclats pour retenter les jets, ou tenter un exotique (+1 PA, PM ou PO).
 
-| État | Délire | Effet |
-|---|---|---|
-| 🧊 Lucide | 0–33 | −15 % de dégâts subis |
-| ⚡ Fêlé | 34–66 | +20 % de dégâts infligés |
-| 🌀 Krazy | 67–99 | +50 % de dégâts, techniques **transformées**, mais +25 % de dégâts subis |
-| 💔 Rupture | 100 | −20 % PV, un tour perdu, retour à 40 |
-
-Un débutant peut rester prudent (Lucide / Fêlé) ; un joueur avancé construit son personnage autour du Krazy,
-de la Rupture ou de l'équilibre parfait.
+Le mode **Auto** laisse l'IA jouer tes personnages (pratique pour farmer), et la **salle d'entraînement** mesure les dommages de ton build sur des mannequins.
 
 ## Contenu
 
-- **3 classes** : Brise-Miroir (guerrier), Tisse-Songe (mage), Funambule (acrobate)
-- **Arbres de talents** : 3 branches par classe, 6 techniques à débloquer, réinitialisation gratuite
-- **Équipement** : 4 emplacements, 5 raretés, forge (+10), objets légendaires qui changent les règles du Délire
-- **Aventure** : 5 zones, 30 étapes, 5 boss ; les ennemis annoncent leur prochaine action
-- **End game** : la Faille Sans Fond (étages infinis, distorsions, objets mythiques) et les Éclats de lucidité (progression sans limite après le niveau 30)
+- **5 classes** : Ferrailleur (mêlée Terre/Feu), Arcaniste (distance Feu/Air), Oracle des Marées (soutien Eau), Rôdeur (distance Air/Eau), Chronomancien (manipulation des PA, Eau/Air)
+- **6 donjons** du niveau 1 au niveau 50, 4 salles chacun dont un boss
+- **12 panoplies**, 6 reliques, 4 armes de départ
+- **7 synergies d'équipe**
 
 ## Jouer en local
 
-Ouvrir `index.html` dans un navigateur. C'est tout.
+Ouvrir `index.html` dans un navigateur. La partie est sauvegardée dans le navigateur (export / import possibles depuis l'écran Équipe).
 
 ## Publier sur GitHub Pages
 
@@ -39,11 +39,23 @@ Ouvrir `index.html` dans un navigateur. C'est tout.
 
 ## Organisation du code
 
+Scripts classiques partageant l'espace de noms global `K` (le jeu fonctionne donc aussi en `file://`).
+
 | Fichier | Rôle |
 |---|---|
-| `js/data.js` | Tout le contenu : classes, techniques, talents, ennemis, zones, objets |
-| `js/engine.js` | Règles : calcul du héros, génération d'objets, combat (sans DOM, testable sous Node) |
-| `js/ui.js` | Écrans, actions du joueur, sauvegarde (`localStorage`) |
-| `css/style.css` | Thème « estampe » (affiche imprimée) qui se dérègle avec le Délire : net en Lucide, jauni et décalé en Fêlé, tirage en négatif en Krazy |
+| `js/core/util.js` | Outils (aléatoire, échappement HTML…) |
+| `js/data/stats.js` | Caractéristiques, éléments, emplacements |
+| `js/data/classes.js` | Classes et sorts |
+| `js/data/items.js` | Panoplies, objets, reliques |
+| `js/data/monsters.js` | Monstres, donjons, tables de butin |
+| `js/core/character.js` | Calcul des stats, panoplies, synergies, sorts modifiés |
+| `js/core/state.js` | Sauvegarde, inventaire, équipement, butin, forge |
+| `js/combat/grid.js` | Géométrie de la grille et des zones |
+| `js/combat/engine.js` | Moteur de combat (tours, sorts, effets, formules) |
+| `js/combat/ai.js` | IA des monstres et du mode Auto |
+| `js/ui/common.js` | Infobulles, fenêtres, fiches d'objets et de sorts |
+| `js/ui/screens.js` | Écrans Équipe, Build, Donjons, Forge, Codex |
+| `js/ui/combat-view.js` | Affichage et contrôle du combat |
+| `js/main.js` | Démarrage |
 
-Ajouter une technique, un ennemi ou une zone se fait dans `js/data.js`, sans toucher au moteur.
+Pour ajouter du contenu, il suffit en général de compléter les fichiers de `js/data/` : une panoplie se déclare en quelques lignes avec ses fourchettes de jets et ses paliers de bonus, et les tables de butin sont générées automatiquement à partir des donjons.
