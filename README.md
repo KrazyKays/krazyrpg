@@ -34,8 +34,8 @@ Ouvrir `index.html` dans un navigateur. C'est tout.
 ## Publier sur GitHub Pages
 
 1. Pousser la branche `main` sur GitHub.
-2. Dans le dépôt : **Settings → Pages → Build and deployment**, choisir **Deploy from a branch**, branche `main`, dossier `/ (root)`.
-3. Le jeu est en ligne à l'adresse `https://<utilisateur>.github.io/krazyrpg/`.
+2. Dans le dépôt : **Settings → Pages → Build and deployment**, choisir la source **GitHub Actions** (une seule fois).
+3. Le workflow `.github/workflows/pages.yml` déploie le site à chaque push sur `main`. Le jeu est en ligne à l'adresse `https://<utilisateur>.github.io/krazyrpg/`.
 
 ## Organisation du code
 
